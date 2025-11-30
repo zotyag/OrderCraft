@@ -1,5 +1,6 @@
 package com.gombar.OrderCraft.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore; // <--- FONTOS IMPORT
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -7,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "order_items")
-@Data
+@Data // Ez generálja a setOrder-t az új mezőhöz!
 @NoArgsConstructor
 @AllArgsConstructor
 public class OrderItem {
@@ -26,7 +27,17 @@ public class OrderItem {
     @Column(nullable = false)
     private Double priceAtOrder;
 
+    // --- EZ HIÁNYZOTT! ---
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id") // Ez hozza létre a kapcsolatot adatbázis szinten
+    @JsonIgnore // Megakadályozza a végtelen ciklust JSON generáláskor
+    private Order order;
+    // ---------------------
+
     public Double getSubtotal() {
+        if (priceAtOrder == null || quantity == null) {
+            return 0.0;
+        }
         return priceAtOrder * quantity;
     }
 }

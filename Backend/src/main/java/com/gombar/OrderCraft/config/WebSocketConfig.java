@@ -13,6 +13,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(new OrderStatusWebSocketHandler(), "/api/ws/orders")
-                .setAllowedOrigins("http://localhost:3000", "http://localhost:3001");
+                // Add hozzá a 5173-at is!
+                .setAllowedOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:5173");
     }
 }

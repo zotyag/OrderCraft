@@ -3,7 +3,8 @@ import axios from 'axios';
 const API_URL = 'http://localhost:8080/api';
 
 const api = axios.create({
-  baseURL: API_URL,
+  // baseURL: 'http://localhost:8080/api',  <-- EZT TÖRÖLD VAGY KOMMENTELD KI
+  baseURL: '/api', // <-- CSAK ENNYI KELL (a proxy elintézi a többit)
   headers: {
     'Content-Type': 'application/json',
   },
