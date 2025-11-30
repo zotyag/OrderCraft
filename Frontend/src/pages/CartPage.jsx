@@ -23,8 +23,9 @@ const CartPage = () => {
       // Here we just submit the order directly
 
       const orderData = {
+          user: { id: user.userId },
           items: cartItems.map(item => ({
-              menuItemId: item.id,
+              menuItem: { id: item.id },
               quantity: item.quantity
           })),
           paymentMethod: 'CASH' // Default for now
