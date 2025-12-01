@@ -20,11 +20,7 @@ const ProfilePage = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    if (user?.id) { // Assuming user object has id. Backend login response has userId, let's check authService
-       // The response stored in localStorage 'user' has userId according to README
-       // However, let's verify if `user` in context has `userId`.
-       // README says response: { userId: 1, ... }
-       // So user.userId should be used.
+    if (user?.userId) {
        fetchOrders();
     }
   }, [user]);
