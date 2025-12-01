@@ -6,11 +6,13 @@ import com.gombar.OrderCraft.model.Order;
 import com.gombar.OrderCraft.model.User;
 import com.gombar.OrderCraft.service.OrderService;
 import com.gombar.OrderCraft.service.UserService;
+import com.gombar.OrderCraft.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
         import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("api/orders")
@@ -22,6 +24,9 @@ public class OrderController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
 
     // GET all orders (ADMIN only)
     @GetMapping
@@ -114,18 +119,41 @@ public class OrderController {
         }
     }
 
-    // DELETE order (ADMIN only)
+    // DELETE order (ADMIN or User if DELIVERED)
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteOrder(@PathVariable Long id,
                                          @RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            if (!isAdmin(authHeader)) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Only admins can delete orders");
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Missing or invalid Authorization header");
             }
-            orderService.deleteOrder(id);
-            return ResponseEntity.noContent().build();
+            String token = authHeader.substring(7);
+            if (!jwtTokenProvider.validateToken(token)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
+            }
+
+            String username = jwtTokenProvider.getUsernameFromToken(token);
+            String role = jwtTokenProvider.getRoleFromToken(token);
+
+            Optional<Order> orderOpt = orderService.getOrderById(id);
+            if (orderOpt.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            Order order = orderOpt.get();
+
+            boolean isAdmin = "ADMIN".equals(role);
+            boolean isOwner = order.getUser().getUsername().equals(username);
+            boolean isDelivered = order.getStatus() == Order.OrderStatus.DELIVERED;
+
+            if (isAdmin || (isOwner && isDelivered)) {
+                orderService.deleteOrder(id);
+                return ResponseEntity.noContent().build();
+            }
+
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("You are not authorized to delete this order");
+
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error deleting order: " + e.getMessage());
         }
     }
 

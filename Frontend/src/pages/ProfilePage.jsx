@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import orderService from '../services/orderService';
 import { useAuth } from '../hooks/useAuth';
 import { Card } from '../components/common/UI';
-import { Clock, CheckCircle, XCircle, Truck, ShoppingBag } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Truck, ShoppingBag, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const statusConfig = {
@@ -74,9 +74,34 @@ const ProfilePage = () => {
                                       </div>
                                       <div className="font-bold text-lg">{order.totalPrice} Ft</div>
                                   </div>
-                                  <div className={`flex items-center gap-2 px-3 py-1 rounded-full w-fit ${statusStyle.bg} ${statusStyle.color}`}>
-                                      <StatusIcon className="w-4 h-4" />
-                                      <span className="font-medium text-sm">{statusStyle.label}</span>
+                                  <div className="flex flex-col items-end gap-2">
+                                      <div className={`flex items-center gap-2 px-3 py-1 rounded-full w-fit ${statusStyle.bg} ${statusStyle.color}`}>
+                                          <StatusIcon className="w-4 h-4" />
+                                          <span className="font-medium text-sm">{statusStyle.label}</span>
+                                      </div>
+
+                                      {order.status === 'DELIVERED' && (
+                                          <button
+                                              onClick={() => {
+                                                  if (window.confirm('Biztosan törölni szeretnéd ezt a rendelést?')) {
+                                                      orderService.deleteOrder(order.id)
+                                                          .then(() => {
+                                                              setOrders(orders.filter(o => o.id !== order.id));
+                                                              // toast.success('Rendelés törölve');
+                                                          })
+                                                          .catch((error) => {
+                                                              console.error('Delete failed', error);
+                                                              // toast.error('Sikertelen törlés');
+                                                          });
+                                                  }
+                                              }}
+                                              className="flex items-center gap-1 text-red-500 hover:text-red-700 text-sm font-medium transition-colors p-1"
+                                              title="Rendelés törlése"
+                                          >
+                                              <Trash2 className="w-4 h-4" />
+                                              <span>Törlés</span>
+                                          </button>
+                                      )}
                                   </div>
                               </div>
 
