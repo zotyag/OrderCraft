@@ -22,3 +22,19 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# --- NEW ADDITIONS ---
+
+# Vite Cache (Critical based on your screenshot)
+.vite
+
+# Environment Variables (Security)
+.env
+.env.test
+.env.production
+
+# Testing coverage
+coverage
+
+# Windows system files
+Thumbs.db
