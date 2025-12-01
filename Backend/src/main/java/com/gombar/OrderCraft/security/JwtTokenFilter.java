@@ -1,45 +1,73 @@
 package com.gombar.OrderCraft.security;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.ServletRequest;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
+// Fontos: OncePerRequestFilter használata a sima Filter helyett (jobb a Springnek)
 @Component
-public class JwtTokenFilter implements Filter {
+public class JwtTokenFilter extends OncePerRequestFilter {
 
-    private static final Logger logger = LoggerFactory.getLogger(JwtTokenFilter.class);
+    private final JwtTokenProvider tokenProvider;
 
-    @Autowired
-    private JwtTokenProvider tokenProvider;
+    public JwtTokenFilter(JwtTokenProvider tokenProvider) {
+        this.tokenProvider = tokenProvider;
+    }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain filterChain)
-            throws IOException, ServletException {
-        try {
-            HttpServletRequest httpRequest = (HttpServletRequest) request;
-            String authHeader = httpRequest.getHeader("Authorization");
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
 
+        try {
+            String authHeader = request.getHeader("Authorization");
+            String token = null;
+            String username = null;
+
+            // 1. Token kinyerése
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                String token = authHeader.substring(7);
+                token = authHeader.substring(7);
                 if (tokenProvider.validateToken(token)) {
-                    String username = tokenProvider.getUsernameFromToken(token);
-                    httpRequest.setAttribute("username", username);
+                    username = tokenProvider.getUsernameFromToken(token);
                     String role = tokenProvider.getRoleFromToken(token);
-                    httpRequest.setAttribute("role", role);
+
+                    // 2. Jogosultság (Authority) létrehozása
+                    // FIGYELEM: Ha a tokenben "ADMIN" van, ez "ADMIN" authority lesz.
+                    // Ha a SecurityConfigban .hasRole("ADMIN") van, akkor ide "ROLE_ADMIN" kellene!
+                    // Mivel te .hasAuthority("ADMIN")-t használsz, ez így jó:
+                    List<SimpleGrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(role));
+
+                    // 3. Authentication objektum létrehozása
+                    // (Nem hívjuk be a DB-t feleslegesen, mert minden infó a tokenben van)
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            username,
+                            null, // credentials nem kell már
+                            authorities
+                    );
+
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    // 4. A LÉNYEG: Beletesszük a Context-be!
+                    // Ez hiányzott nálad. Enélkül a Spring nem tudja, ki vagy.
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
         } catch (Exception ex) {
-            logger.error("Cannot set user authentication in security context", ex);
+            // Logolhatod a hibát, de ne állítsd meg a filter láncot
+            System.err.println("Hiba a user autentikáció beállításakor: " + ex.getMessage());
         }
 
+        // Továbbengedjük a kérést
         filterChain.doFilter(request, response);
     }
 }

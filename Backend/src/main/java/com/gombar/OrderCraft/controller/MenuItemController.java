@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/menu")
-@CrossOrigin(origins = "http://localhost:3000")
+@RequestMapping("api/menu")
+//@CrossOrigin(origins = "http://localhost:3000")
 public class MenuItemController {
 
     @Autowired

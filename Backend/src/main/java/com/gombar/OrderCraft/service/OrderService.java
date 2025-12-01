@@ -5,8 +5,11 @@ import com.gombar.OrderCraft.model.OrderItem;
 import com.gombar.OrderCraft.model.MenuItem;
 import com.gombar.OrderCraft.model.User;
 import com.gombar.OrderCraft.repository.OrderRepository;
+import com.gombar.OrderCraft.repository.MenuItemRepository; // <--- EZT IMPORTÁLD!
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional; // <--- Javasolt import
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,18 +21,37 @@ public class OrderService {
     private OrderRepository orderRepository;
 
     @Autowired
+    private MenuItemRepository menuRepository; // <--- EZ ÚJ: Kell az árak lekéréséhez
+
+    @Autowired
     private MenuService menuService;
 
     // CRUD Operations
+    @Transactional // Fontos: ha hiba van, visszaállít mindent
     public Order createOrder(Order order) {
-        // Calculate total price
         double totalPrice = 0;
+
+        // Végigmegyünk a tételeken, amiket a frontend küldött
         for (OrderItem item : order.getItems()) {
-            totalPrice += item.getSubtotal();
+
+            // 1. Megkeressük a valódi terméket az ID alapján (az adatbázisból)
+            // A frontend csak ennyit küld: menuItem: { id: 1 }
+            MenuItem realMenuItem = menuRepository.findById(item.getMenuItem().getId())
+                    .orElseThrow(() -> new IllegalArgumentException("Menu item not found with id: " + item.getMenuItem().getId()));
+
+            // 2. Beállítjuk a hiányzó adatokat
+            item.setMenuItem(realMenuItem); // Kicseréljük a "üres" objektumot a valódira
+            item.setPriceAtOrder(realMenuItem.getPrice()); // <--- A HIBA ITT VOLT: Beállítjuk az aktuális árat
+            item.setOrder(order); // Beállítjuk a szülő-gyerek kapcsolatot (JPA miatt kell)
+
+            // 3. Számolunk
+            // (Most már nem lesz null pointer exception, mert beállítottuk az árat)
+            totalPrice += realMenuItem.getPrice() * item.getQuantity();
+
             // Increment order count for popular items ranking
-            MenuItem menuItem = item.getMenuItem();
-            menuService.incrementOrderCount(menuItem);
+            menuService.incrementOrderCount(realMenuItem);
         }
+
         order.setTotalPrice(totalPrice);
         order.setStatus(Order.OrderStatus.PENDING);
         order.setCreatedAt(LocalDateTime.now());
